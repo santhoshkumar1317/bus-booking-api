@@ -1,0 +1,183 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String    @id @default(uuid())
+  userId      String    @unique // Custom user identifier
+  email       String    @unique
+  phoneNumber String // Phone number of the user
+  gender      Gender // Gender of the user
+  age         Int // Age of the user
+  role        Role      @default(USER)
+  bookings    Booking[] // Bookings made by the user
+  reviews     Review[] // Reviews given by the user
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Booking {
+  id             String          @id @default(uuid())
+  userId         String
+  user           User            @relation(fields: [userId], references: [id])
+  busId          String
+  bus            Bus             @relation(fields: [busId], references: [id])
+  status         BookingStatus   @default(CONFIRMED)
+  members        BookingMember[] // List of members for this booking (including the user if applicable)
+  travelDuration String // Travel time e.g., "8 hrs"
+  dateOfTravel   DateTime // Date of travel
+  fromCityTiming DateTime // Timing at the departure city
+  toCityTiming   DateTime // Timing at the arrival city
+  restStops      RestStop[] // Rest stops during travel
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model BookingMember {
+  id              String        @id @default(uuid())
+  bookingId       String
+  booking         Booking       @relation(fields: [bookingId], references: [id])
+  seatNumber      Int // Seat number for each member in the booking
+  name            String // Name of the member
+  age             Int // Age of the member
+  gender          Gender // Gender of the member
+  boardingPointId String
+  droppingPointId String
+  boardingPoint   BoardingPoint @relation("Boarding", fields: [boardingPointId], references: [id])
+  droppingPoint   DroppingPoint @relation("Dropping", fields: [droppingPointId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Bus {
+  id             String     @id @default(uuid())
+  busNumber      String     @unique
+  fromCityId     String
+  toCityId       String
+  fromCity       City       @relation("FromCity", fields: [fromCityId], references: [id])
+  toCity         City       @relation("ToCity", fields: [toCityId], references: [id])
+  totalSeats     Int // Total seats on the bus
+  availableSeats Int // Tracks available seats
+  seatType       SeatType // Type: seater, sleeper, or hybrid (sleeper cum seater)
+  acType         ACType // AC or Non-AC
+  sleeperSeats   Int? // Number of sleeper seats for hybrid buses
+  seaterSeats    Int? // Number of seater seats for hybrid buses
+  timing         DateTime // Departure or arrival timing
+  route          String // Route information, e.g., "via Krishnagiri, Vellore"
+  images         BusImage[] // Array of images associated with the bus
+  reviews        Review[] // Reviews for the bus
+
+  bookings Booking[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model BusImage {
+  id          String  @id @default(uuid())
+  busId       String
+  bus         Bus     @relation(fields: [busId], references: [id])
+  imageUrl    String // URL or encoded data for the image
+  description String? // Optional description of the image
+
+  createdAt DateTime @default(now())
+}
+
+model Review {
+  id      String  @id @default(uuid())
+  userId  String
+  user    User    @relation(fields: [userId], references: [id])
+  busId   String
+  bus     Bus     @relation(fields: [busId], references: [id])
+  rating  Int // Rating given by the user (e.g., 1 to 5)
+  comment String? // Optional review comment
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model City {
+  id             String          @id @default(uuid())
+  name           String // Name of the city
+  busesFrom      Bus[]           @relation("FromCity") // Buses starting from this city
+  busesTo        Bus[]           @relation("ToCity") // Buses arriving to this city
+  boardingPoints BoardingPoint[] // Boarding points within the city
+  droppingPoints DroppingPoint[] // Dropping points within the city
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model BoardingPoint {
+  id             String          @id @default(uuid())
+  cityId         String
+  city           City            @relation(fields: [cityId], references: [id])
+  location       String // Boarding location within the city
+  bookingMembers BookingMember[] @relation("Boarding")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model DroppingPoint {
+  id             String          @id @default(uuid())
+  cityId         String
+  city           City            @relation(fields: [cityId], references: [id])
+  location       String // Dropping location within the city
+  bookingMembers BookingMember[] @relation("Dropping")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model RestStop {
+  id        String  @id @default(uuid())
+  bookingId String
+  booking   Booking @relation(fields: [bookingId], references: [id])
+  location  String // Rest stop location
+  duration  Int // Duration in minutes (e.g., 15 or 30)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum SeatType {
+  SLEEPER
+  SEATER
+  SLEEPER_CUM_SEATER // Hybrid type for sleeper cum seater buses
+}
+
+enum ACType {
+  AC
+  NON_AC
+}
+
+enum BookingStatus {
+  CONFIRMED
+  CANCELLED
+  PENDING
+}
